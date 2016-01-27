@@ -26,6 +26,8 @@ var path = require('path');
 var traverse = require('traverse');
 var fs = require('fs');
 
+var URL_REGEX = /\//;
+
 module.exports = function SassImports(content) {
   var query = loaderUtils.parseQuery(this.query);
   var imports = [];
@@ -35,15 +37,20 @@ module.exports = function SassImports(content) {
   if (this.cacheable) this.cacheable();
 
   Object.keys(query).forEach(function traverseFiles(fileName) {
-    var fpath = path.join(dir, fileName);
-    var includeContent = JSON.parse(fs.readFileSync(fpath));
+    // var fpath = path.join(dir, fileName);
+    // var includeContent = JSON.parse(fs.readFileSync(fpath));
+    var code = fs.readFileSync(fileName, {encoding: 'utf8'});
+    var includeContent = self.exec(code, fileName);
     var obj = traverse(includeContent);
 
-    self.addDependency(fpath);
+    self.addDependency(fileName);
 
     obj.paths().forEach(function traverseJSONPAth(jsonPath) {
       var val = obj.get(jsonPath);
       if (typeof val !== 'object') {
+        if (typeof val === 'string' && URL_REGEX.test(val)) {
+          val = '"' + val + '"';
+        }
         imports.push('$'+jsonPath.join('-') + ': ' + val + ';');
       }
     });
